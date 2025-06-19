@@ -1,0 +1,219 @@
+local aimPart = "Head"
+local drawTracers = false
+local tracers = {}
+-- LocalScript em StarterPlayerScripts
+
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local StarterGui = game:GetService("StarterGui")
+
+local localPlayer = Players.LocalPlayer
+local camera = workspace.CurrentCamera
+
+-- ConfiguraÃ§Ãµes
+local aimPart = "Head"
+local aimbotEnabled = false
+local highlightEnabled = false
+
+-- FunÃ§Ã£o: encontra jogador mais prÃ³ximo do cursor
+local function getClosestTarget()
+	local closestPlayer = nil
+	local shortestDistance = math.huge
+
+	for _, player in pairs(Players:GetPlayers()) do
+		if player ~= localPlayer and player.Character and player.Character:FindFirstChild(aimPart) then
+			local part = player.Character[aimPart]
+			local screenPoint, onScreen = camera:WorldToViewportPoint(part.Position)
+
+			if onScreen then
+				local mouseLocation = UserInputService:GetMouseLocation()
+				local distance = (Vector2.new(screenPoint.X, screenPoint.Y) - Vector2.new(mouseLocation.X, mouseLocation.Y)).Magnitude
+
+				if distance < shortestDistance then
+					shortestDistance = distance
+					closestPlayer = player
+				end
+			end
+		end
+	end
+
+	return closestPlayer
+end
+
+-- Loop do Aimbot
+RunService.RenderStepped:Connect(function()
+	if aimbotEnabled then
+		local target = getClosestTarget()
+
+		if target and target.Character and target.Character:FindFirstChild(aimPart) then
+			camera.CFrame = CFrame.new(camera.CFrame.Position, target.Character[aimPart].Position)
+		end
+	end
+end)
+
+-- Aplicar/remover highlight
+local function updateHighlights()
+	for _, player in pairs(Players:GetPlayers()) do
+		if player ~= localPlayer and player.Character then
+			local existing = player.Character:FindFirstChild("AimbotHighlight")
+			if highlightEnabled then
+				if not existing then
+					local highlight = Instance.new("Highlight")
+					highlight.Name = "AimbotHighlight"
+					highlight.FillColor = Color3.fromRGB(255, 0, 0)
+					highlight.OutlineColor = Color3.new(0, 0, 0)
+					highlight.FillTransparency = 0.5
+					highlight.OutlineTransparency = 0
+					highlight.Adornee = player.Character
+					highlight.Parent = player.Character
+				end
+			else
+				if existing then
+					existing:Destroy()
+				end
+			end
+		end
+	end
+end
+
+-- Atualiza os highlights constantemente se ativo
+RunService.Heartbeat:Connect(function()
+	if highlightEnabled then
+		updateHighlights()
+	end
+end)
+
+-- Interface GrÃ¡fica
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "AimbotUI"
+screenGui.Parent = localPlayer:WaitForChild("PlayerGui")
+
+local frame = Instance.new("Frame")
+frame.Size = UDim2.new(0, 200, 0, 120)
+frame.Position = UDim2.new(0, 20, 0, 100)
+frame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+frame.BorderSizePixel = 0
+frame.Parent = screenGui
+
+local uiCorner = Instance.new("UICorner")
+uiCorner.CornerRadius = UDim.new(0, 8)
+uiCorner.Parent = frame
+
+-- BotÃ£o: Minimizar
+local minimizeButton = Instance.new("TextButton")
+minimizeButton.Size = UDim2.new(0, 20, 0, 20)
+minimizeButton.Position = UDim2.new(1, -24, 0, 4)
+minimizeButton.Text = "-"
+minimizeButton.TextScaled = true
+minimizeButton.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
+minimizeButton.TextColor3 = Color3.new(1, 1, 1)
+minimizeButton.Parent = frame
+
+local minimized = false
+
+minimizeButton.MouseButton1Click:Connect(function()
+	minimized = not minimized
+	for _, child in ipairs(frame:GetChildren()) do
+		if child:IsA("TextButton") and child ~= minimizeButton then
+			child.Visible = not minimized
+		end
+	end
+	minimizeButton.Text = minimized and "+" or "-"
+end)
+
+-- BotÃ£o: Aimbot
+local aimbotBtn = Instance.new("TextButton")
+aimbotBtn.Size = UDim2.new(0, 180, 0, 40)
+aimbotBtn.Position = UDim2.new(0, 10, 0, 30)
+aimbotBtn.Text = "Aimbot: OFF"
+aimbotBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+aimbotBtn.TextColor3 = Color3.new(1, 1, 1)
+aimbotBtn.TextScaled = true
+aimbotBtn.Parent = frame
+
+aimbotBtn.MouseButton1Click:Connect(function()
+	aimbotEnabled = not aimbotEnabled
+	aimbotBtn.Text = "Aimbot: " .. (aimbotEnabled and "ON" or "OFF")
+end)
+
+-- BotÃ£o: Highlight
+local highlightBtn = Instance.new("TextButton")
+highlightBtn.Size = UDim2.new(0, 180, 0, 40)
+highlightBtn.Position = UDim2.new(0, 10, 0, 75)
+highlightBtn.Text = "Highlight: OFF"
+highlightBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+highlightBtn.TextColor3 = Color3.new(1, 1, 1)
+highlightBtn.TextScaled = true
+highlightBtn.Parent = frame
+
+highlightBtn.MouseButton1Click:Connect(function()
+	highlightEnabled = not highlightEnabled
+	highlightBtn.Text = "Highlight: " .. (highlightEnabled and "ON" or "OFF")
+	updateHighlights()
+end)
+frame.Active = true
+frame.Draggable = true
+-- Botão: Parte do Corpo
+local partBtn = Instance.new("TextButton")
+partBtn.Size = UDim2.new(0, 180, 0, 40)
+partBtn.Position = UDim2.new(0, 10, 0, 210)
+partBtn.Text = "Mira: Head"
+partBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+partBtn.TextColor3 = Color3.new(1, 1, 1)
+partBtn.TextScaled = true
+partBtn.Parent = frame
+
+partBtn.MouseButton1Click:Connect(function()
+    aimPart = (aimPart == "Head") and "Torso" or "Head"
+    partBtn.Text = "Mira: " .. aimPart
+end)
+-- Botão: Tracers
+local tracersBtn = Instance.new("TextButton")
+tracersBtn.Size = UDim2.new(0, 180, 0, 40)
+tracersBtn.Position = UDim2.new(0, 10, 0, 255)
+tracersBtn.Text = "Tracers: OFF"
+tracersBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+tracersBtn.TextColor3 = Color3.new(1, 1, 1)
+tracersBtn.TextScaled = true
+tracersBtn.Parent = frame
+
+tracersBtn.MouseButton1Click:Connect(function()
+    drawTracers = not drawTracers
+    tracersBtn.Text = "Tracers: " .. (drawTracers and "ON" or "OFF")
+
+    if not drawTracers then
+        for _, line in pairs(tracers) do
+            line:Remove()
+        end
+        tracers = {}
+    end
+end)
+RunService.RenderStepped:Connect(function()
+    if drawTracers then
+        -- Remover linhas antigas
+        for _, line in pairs(tracers) do
+            line:Remove()
+        end
+        tracers = {}
+
+        for _, player in pairs(Players:GetPlayers()) do
+            if player ~= localPlayer and player.Character and player.Character:FindFirstChild(aimPart) then
+                local part = player.Character[aimPart]
+                local screenPoint, onScreen = camera:WorldToViewportPoint(part.Position)
+
+                if onScreen then
+                    local line = Drawing.new("Line")
+                    line.From = Vector2.new(camera.ViewportSize.X / 2, camera.ViewportSize.Y)
+                    line.To = Vector2.new(screenPoint.X, screenPoint.Y)
+                    line.Color = Color3.fromRGB(255, 0, 0)
+                    line.Thickness = 1.5
+                    line.Transparency = 1
+                    line.ZIndex = 1
+                    line.Visible = true
+                    table.insert(tracers, line)
+                end
+            end
+        end
+    end
+end)
